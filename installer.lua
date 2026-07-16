@@ -5,7 +5,7 @@ local filesToDownload = {
   {url = REPOSITORY .. "agreement.lua",   path = "/home/agreement.lua"},
 }
 
-local appTitle = "VIP MARKET – Installer (fixed)"
+local appTitle = "PI MARKET – Installer (fixed)"
 local rebootAfter = true
 
 local computer  = require("computer")
