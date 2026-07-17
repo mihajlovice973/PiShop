@@ -401,7 +401,7 @@ end
 -- ВЕБ-ИНТЕГРАЦИЯ
 -- ============================================================
 
-WEB_URL = "https://mihajlovice973.pythonanywhere.com/"
+WEB_URL = "https://karma1.pythonanywhere.com/"
 
 
 lastSentQuantities = {}      -- Хранит последние отправленные количества товаров
@@ -5165,7 +5165,7 @@ function showQRCodePopup()
     end
     
     -- Ссылка
-    local linkText = "Ссылка: https://mihajlovice973.pythonanywhere.com/"
+    local linkText = "Ссылка: https://karma1.pythonanywhere.com/"
     local linkX = 80 - math.floor(#linkText / 2) + 1
     gpu.setForeground(colors.inactive)
     gpu.set(linkX, qrY + 39, linkText)
