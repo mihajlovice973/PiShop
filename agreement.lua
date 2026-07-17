@@ -16,16 +16,19 @@ local function drawAgreementScreen()
         gpu.set(left, y, "│")
         gpu.set(right, y, "│")
     end
-    gpu.set(left, top, "┌") gpu.set(right, top, "┐")
-    gpu.set(left, bottom, "└") gpu.set(right, bottom, "┘")
+    gpu.set(left, top, "┌")
+    gpu.set(right, top, "┐")
+    gpu.set(left, bottom, "└")
+    gpu.set(right, bottom, "┘")
 
-    -- Заголовок
-    gpu.setForeground(0x00CCFF)
+    -- Функция центрирования текста
     local function center(y, txt, col)
         gpu.setForeground(col or 0xFFFFFF)
-        local x = math.floor((80 - unicode.len(txt))/2) + 1
+        local x = math.floor((80 - unicode.len(txt)) / 2) + 1
         gpu.set(x, y, txt)
     end
+
+    -- Заголовок
     center(5, "ПОЛЬЗОВАТЕЛЬСКОЕ СОГЛАШЕНИЕ", 0x00CCFF)
 
     -- Текст
@@ -37,10 +40,10 @@ local function drawAgreementScreen()
     center(11, "2. Администрация не несёт ответственности за потерю предметов.")
     center(12, "3. Запрещено использование багов и эксплойтов.")
 
-    -- Красная строка (ручной вывод для надёжности)
+    -- Красная строка
     gpu.setForeground(0xFF0000)
     local redText = "   Нарушение = перманентная блокировка аккаунта."
-    local redX = math.floor((80 - unicode.len(redText))/2) + 1
+    local redX = math.floor((80 - unicode.len(redText)) / 2) + 1
     gpu.set(redX, 13, redText)
 
     gpu.setForeground(0x888888)
@@ -53,7 +56,7 @@ local function drawAgreementScreen()
     -- Кнопка
     local btnText = "[ ПОНЯТНО ]"
     local btnW = unicode.len(btnText) + 4
-    local btnX = math.floor((80 - btnW)/2) + 2
+    local btnX = math.floor((80 - btnW) / 2) + 2
 
     gpu.setBackground(0x004400)
     gpu.setForeground(0x00FF88)
@@ -62,4 +65,5 @@ local function drawAgreementScreen()
     gpu.setBackground(0x000000)
 end
 
+-- ВОЗВРАЩАЕМ ФУНКЦИЮ
 return drawAgreementScreen
