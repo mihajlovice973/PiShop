@@ -80,7 +80,7 @@ local function timeToMidnight()
     return string.format("%02d:%02d:%02d", h, m, s)
 end
 
-local ACCESS_PASSWORD = "secret"
+local ACCESS_PASSWORD = "201015"
 
 -- ===== СИСТЕМА АДМИНИСТРАТОРОВ =====
 local ADMINS_PATH = "/home/admins.db"
@@ -103,7 +103,7 @@ end
 
 -- Если нет админов, добавляем ZoziDo по умолчанию
 if #admins == 0 then
-    admins = {"ZoziDo"}
+    admins = {"KaRMa__"}
     local file = io.open(ADMINS_PATH, "w")
     if file then
         file:write(serialization.serialize(admins))
