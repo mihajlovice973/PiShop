@@ -101,9 +101,9 @@ if filesystem.exists(ADMINS_PATH) then
     end
 end
 
--- Если нет админов, добавляем KaRMa__ по умолчанию
+-- Если нет админов, добавляем ZoziDo по умолчанию
 if #admins == 0 then
-    admins = {"KaRMA__"}
+    admins = {"ZoziDo"}
     local file = io.open(ADMINS_PATH, "w")
     if file then
         file:write(serialization.serialize(admins))
