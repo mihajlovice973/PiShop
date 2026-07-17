@@ -3,6 +3,8 @@ local REPOSITORY  = "https://raw.githubusercontent.com/mihajlovice973/PiShop/mai
 local filesToDownload = {
   {url = REPOSITORY .. "pimmarket.lua",   path = "/home/pimmarket.lua"},
   {url = REPOSITORY .. "agreement.lua",   path = "/home/agreement.lua"},
+  {url = REPOSITORY .. "buy_items.lua",   path = "/home/buy_items.lua"},
+  {url = REPOSITORY .. "shop_items.lua",   path = "/home/shop_items.lua"},
 }
 
 local appTitle = "PI MARKET – Installer (fixed)"
