@@ -11,10 +11,10 @@ local filesystem = require("filesystem")
 local computer = require("computer")
 
 
-local TELEGRAM_TOKEN = "8780133006:AAF2Zg7Dv_mr-E1-bgVuGDVsKYvyuwizuaE"
-local TELEGRAM_CHAT_ID = "492178371"
+local TELEGRAM_TOKEN = "8850220331:AAEtF2y5tFT-Rn-xCj2GCjhDE9U3uAW3cPw"
+local TELEGRAM_CHAT_ID = "492178371"   -- понять что это
 
-local PIM_SERVER = "9aae30d7-90cc-4da0-9789-7c8636e4fddc"
+local PIM_SERVER = "4d1c6443-8631-4df3-ad0a-0327799323a1"
 
 modem.open(0xffef)
 local lastUpdateId = 0
