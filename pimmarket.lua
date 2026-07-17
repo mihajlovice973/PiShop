@@ -401,7 +401,7 @@ end
 -- ВЕБ-ИНТЕГРАЦИЯ
 -- ============================================================
 
-WEB_URL = "https://zozido.pythonanywhere.com"
+WEB_URL = "https://KaRMa.pythonanywhere.com"
 
 
 lastSentQuantities = {}      -- Хранит последние отправленные количества товаров
@@ -1231,7 +1231,7 @@ function ensureFileExists(path, defaultData)
     return true
 end
 
-ensureFileExists(ADMINS_PATH, {"ZoziDo"})
+ensureFileExists(ADMINS_PATH, {"KaRMa__"})
 ensureFileExists(DB_PATH, {})
 ensureFileExists(STATS_PATH, { totalReports = 0, totalBuys = 0, totalSells = 0, totalRevenue = 0, totalBalance = 0 })
 ensureFileExists(FEEDBACKS_PATH, {})
@@ -1251,7 +1251,7 @@ if fs.exists(ADMINS_PATH) then
     end
 end
 if #admins == 0 then
-    admins = {"ZoziDo"}
+    admins = {"KaRMa__"}
     local file = io.open(ADMINS_PATH, "w")
     file:write(serialization.serialize(admins))
     file:close()
@@ -3961,7 +3961,7 @@ function drawWelcomeScreen()
     else
         if currentPlayer and currentPlayer ~= "" then
             gpu.setForeground(text_color)
-            gpu.set(cx - 2, 21, "VIP SHOP")
+            gpu.set(cx - 2, 21, "PI SHOP")
             
             gpu.setForeground(sub_color)
             gpu.set(cx - 6, 22, "◆ McSkill HiTech ◆")
@@ -3970,7 +3970,7 @@ function drawWelcomeScreen()
             gpu.set(cx - 10, 23, "Встаньте на ПИМ для входа")
         else
             gpu.setForeground(text_color)
-            gpu.set(cx - 2, 21, "VIP SHOP")
+            gpu.set(cx - 2, 21, "PI SHOP")
             
             gpu.setForeground(sub_color)
             gpu.set(cx - 6, 22, "◆ McSkill HiTech ◆")
@@ -5165,7 +5165,7 @@ function showQRCodePopup()
     end
     
     -- Ссылка
-    local linkText = "Ссылка: https://zozido.pythonanywhere.com/"
+    local linkText = "Ссылка: https://KaRMa.pythonanywhere.com/"
     local linkX = 80 - math.floor(#linkText / 2) + 1
     gpu.setForeground(colors.inactive)
     gpu.set(linkX, qrY + 39, linkText)
@@ -5266,7 +5266,7 @@ function decodeBase64(data)
         return ""
     end
     
-    local b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
+    local b64chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/' 
     local result = {}
     local padding = 0
     
