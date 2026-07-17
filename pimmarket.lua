@@ -11,7 +11,7 @@ local os = require("os")
 local TIMEZONE_OFFSET = 3 * 3600
 
 -- ============================================================
--- АВТОМАТИЧЕСКАЯ НАСТРОЙКА АВТОЗАПУСКА1233355551
+-- АВТОМАТИЧЕСКАЯ НАСТРОЙКА АВТОЗАПУСКА
 -- ============================================================
 
 local function setupAutoStart()
@@ -25,7 +25,7 @@ local function setupAutoStart()
         local file = io.open(startupFile, "w")
         if file then
             file:write([[
--- Автозапуск PI MARKET
+-- Автозапуск PIM MARKET
 local shell = require("shell")
 local computer = require("computer")
 
@@ -319,6 +319,9 @@ end
 function safeExit()
     writeDebugLog("🚪 Безопасный выход")
     
+    -- ★★★ СБРАСЫВАЕМ ФЛАГ QR ★★★
+    qrPopupActive = false
+    
     -- ★★★ 1. МГНОВЕННО ПОМЕЧАЕМ, ЧТО ВЫХОДИМ ★★★
     isShuttingDown = true
     
@@ -398,12 +401,13 @@ end
 -- ВЕБ-ИНТЕГРАЦИЯ
 -- ============================================================
 
-WEB_URL = "https://KaRMa.pythonanywhere.com"
+WEB_URL = "https://zozido.pythonanywhere.com"
 
 
 lastSentQuantities = {}      -- Хранит последние отправленные количества товаров
 lastSentTime = 0             -- Время последней успешной отправки
-MIN_SEND_INTERVAL = 600      -- Минимальный интервал между отправками (600 секунд)
+lastCheckTime = 0    
+MIN_SEND_INTERVAL = 1800      -- Минимальный интервал между отправками (1800 секунд)
 
 function toJson(val)
     if type(val) == "string" then
@@ -644,9 +648,11 @@ function renderCurrentScreen()
             drawAgreementScreen()
         end
     elseif currentScreen == "auth_popup" then
-        showAuthPopup()
+        if not qrPopupActive then
+            showAuthPopup()
+        end
     elseif currentScreen == "qr_popup" then
-        showQRCodePopup()
+        -- ★★★ НИЧЕГО НЕ ДЕЛАЕМ ★★★
     end
     drawTempMessage()
 end
@@ -1225,7 +1231,7 @@ function ensureFileExists(path, defaultData)
     return true
 end
 
-ensureFileExists(ADMINS_PATH, {"KaRMa__"})
+ensureFileExists(ADMINS_PATH, {"ZoziDo"})
 ensureFileExists(DB_PATH, {})
 ensureFileExists(STATS_PATH, { totalReports = 0, totalBuys = 0, totalSells = 0, totalRevenue = 0, totalBalance = 0 })
 ensureFileExists(FEEDBACKS_PATH, {})
@@ -1245,7 +1251,7 @@ if fs.exists(ADMINS_PATH) then
     end
 end
 if #admins == 0 then
-    admins = {"KaRMa__"}
+    admins = {"ZoziDo"}
     local file = io.open(ADMINS_PATH, "w")
     file:write(serialization.serialize(admins))
     file:close()
@@ -1768,7 +1774,7 @@ function saveBuyItemsWithQty()
 end
 
 
-function sendStats()
+ function sendStats()
     writeDebugLog("📊 sendStats() начат (резервный дамп)")
     
     -- ★★★ ПРОВЕРЯЕМ, ПРОШЛО ЛИ ДОСТАТОЧНО ВРЕМЕНИ ★★★
@@ -1778,37 +1784,114 @@ function sendStats()
         return
     end
     
-    -- ★★★ ПРОВЕРЯЕМ, ИЗМЕНИЛИСЬ ЛИ КОЛИЧЕСТВА ★★★
-    local hasChanges = false
-    if component.isAvailable("me_interface") then
-        local me = component.me_interface
-        local rawItems = me.getItemsInNetwork()
+    -- ★★★ ПРОВЕРЯЕМ, НЕ СЛИШКОМ ЛИ ЧАСТО МЫ ОБРАЩАЕМСЯ К МЭ ★★★
+    if now - lastCheckTime < 60 then
+        writeDebugLog("⏳ Слишком частая проверка МЭ (прошло " .. (now - lastCheckTime) .. "с), пропускаем")
+        return
+    end
+    lastCheckTime = now
+    
+    -- Сохраняем время отправки
+    lastSentTime = now
+    writeDebugLog("📊 Отправляем статистику")
+    
+    local sysInfo = {}
+    local ok, result = pcall(getSystemInfo)
+    if ok and result then
+        sysInfo = result
+    else
+        writeErrorLog("⚠️ Ошибка получения системной информации")
+    end
+    
+    local playerList = {}
+    local totalBalance = 0
+    local playerCount = 0
+    local allPlayerTransactions = {}
+    
+    for _ in pairs(players) do playerCount = playerCount + 1 end
+    writeDebugLog("📊 Всего игроков в памяти: " .. playerCount)
+    
+    for name, data in pairs(players) do
+        writeDebugLog("   👤 " .. name .. ": Coin=" .. tostring(data.balance or 0) .. ", EMA=" .. tostring(data.emaBalance or 0))
+        local bal = (data.balance or 0) + (data.emaBalance or 0)
+        totalBalance = totalBalance + bal
         
-        local currentQuantities = {}
-        for _, meItem in ipairs(rawItems) do
-            local key = meItem.name .. ":" .. (meItem.damage or 0)
-            currentQuantities[key] = meItem.size or 0
+        if not data.transactionsList then
+            data.transactionsList = {}
         end
         
-        -- Сравниваем с последними отправленными
-        for key, qty in pairs(currentQuantities) do
-            if lastSentQuantities[key] ~= qty then
-                hasChanges = true
-                break
+        if data.transactionsList then
+            for _, t in ipairs(data.transactionsList) do
+                local tCopy = {
+                    time = t.time,
+                    type = t.type,
+                    player = name,
+                    item = t.item,
+                    qty = t.qty,
+                    coin = t.coin,
+                    ema = t.ema
+                }
+                table.insert(allPlayerTransactions, tCopy)
             end
         end
         
-        -- Если нет изменений - пропускаем отправку
-        if not hasChanges then
-            writeDebugLog("📊 Нет изменений в количествах, пропускаем отправку")
-            return
-        end
-        
-        -- Сохраняем новые количества
-        lastSentQuantities = currentQuantities
-        lastSentTime = now
-        writeDebugLog("📊 Обнаружены изменения, отправляем статистику")
+        table.insert(playerList, {
+            name = name,
+            balance = data.balance or 0,
+            emaBalance = data.emaBalance or 0,
+            transactions = data.transactions or 0,
+            banned = data.banned or false,
+            transactionsList = data.transactionsList,
+            site_user = data.site_user
+        })
     end
+    
+    table.sort(allPlayerTransactions, function(a, b)
+        return a.time > b.time
+    end)
+    
+    writeDebugLog("👥 Игроков отправлено: " .. #playerList)
+    writeDebugLog("📋 Всего транзакций отправлено: " .. #allPlayerTransactions)
+    globalStats.totalBalance = totalBalance
+    saveGlobalStats()
+    
+    local feedbacksList = {}
+    if fs.exists(FEEDBACKS_PATH) then
+        local file = io.open(FEEDBACKS_PATH, "r")
+        if file then
+            local data = file:read("*a")
+            file:close()
+            if data and #data > 0 then
+                local ok, result = pcall(serialization.unserialize, data)
+                if ok and type(result) == "table" then feedbacksList = result end
+            end
+        end
+    end
+    
+    -- ★★★ ОТПРАВЛЯЕМ ТОЛЬКО ИГРОКОВ И ТРАНЗАКЦИИ, ТОВАРЫ НЕ ОТПРАВЛЯЕМ ★★★
+    local payload = {
+        players = playerList,
+        admins = admins,
+        total = #playerList,
+        total_balance = totalBalance,
+        total_transactions = (globalStats.totalBuys or 0) + (globalStats.totalSells or 0),
+        total_reports = globalStats.totalReports or 0,
+        total_feedbacks = #feedbacksList,
+        total_revenue = globalStats.totalRevenue or 0,
+        online = 0,
+        paused = shopPaused,
+        feedbacks = feedbacksList,
+        transactions = allPlayerTransactions,
+        -- ★★★ ТОВАРЫ НЕ ОТПРАВЛЯЕМ — ОНИ УПРАВЛЯЮТСЯ ТОЛЬКО С САЙТА ★★★
+        system_info = sysInfo
+    }
+    
+    local jsonData = toJson(payload)
+    writeDebugLog("📤 Размер JSON: " .. #jsonData .. " байт")
+    writeDebugLog("📤 Отправлены данные: " .. #playerList .. " игроков, " .. #allPlayerTransactions .. " транзакций")
+    
+    sendToWeb("/api/update", jsonData)
+end
     
     local sysInfo = {}
     local ok, result = pcall(getSystemInfo)
@@ -1959,18 +2042,20 @@ function sendStats()
     writeDebugLog("📤 Отправлены данные: " .. #playerList .. " игроков, " .. #buyItems .. " товаров покупки, " .. #sellItems .. " товаров продажи")
     
     sendToWeb("/api/update", jsonData)
-end
+
 
 -- ★★★ ТАЙМЕР С УВЕЛИЧЕННЫМ ИНТЕРВАЛОМ (2 МИНУТЫ) ★★★
-createTimer(600, function()  -- ← 600 секунд = 10 минут
+
+createTimer(1800, function()
     if not TRANSACTION_LOCK then
         pcall(sendStats)
     end
     return true
 end, true)
 
+
 -- ★★★ ТАЙМЕР ДЛЯ СИСТЕМНОЙ ИНФОРМАЦИИ (5 МИНУТ) ★★★
-createTimer(300, function()  -- ← 300 секунд = 5 минут
+createTimer(300, function()
     if not TRANSACTION_LOCK then
         local sysInfo = getSystemInfo()
         sendToWeb("/api/system_info", toJson(sysInfo))
@@ -1980,14 +2065,6 @@ createTimer(300, function()  -- ← 300 секунд = 5 минут
 end, true)
 
 
-createTimer(120, function()
-    if not TRANSACTION_LOCK then
-        local sysInfo = getSystemInfo()
-        sendToWeb("/api/system_info", toJson(sysInfo))
-        writeDebugLog("📊 Отправлены системные данные отдельным пакетом")
-    end
-    return true
-end, true)
 
 function safeDoFile(path)
     writeDebugLog("safeDoFile: " .. path)
@@ -2150,6 +2227,7 @@ playerTransactions = 0
 playerRegDate = ""
 playerAgreed = false
 currentScreen = "welcome"
+qrPopupActive = false
 
 authCodeInput = ""
 boundPlayer = nil
@@ -2351,7 +2429,6 @@ function getBindingStatus()
                         local p = playersIndex[currentPlayer]
                         p.site_user = data.site_user
                         saveDB()
-                        addLog("🔗 Привязка восстановлена с сервера: " .. currentPlayer .. " -> " .. data.site_user)
                     end
                     boundPlayer = data.site_user
                     saveBoundPlayer(data.site_user)
@@ -2364,7 +2441,6 @@ function getBindingStatus()
                         if p.site_user then
                             p.site_user = nil
                             saveDB()
-                            addLog("🔓 Привязка отозвана на сервере: " .. currentPlayer)
                         end
                     end
                     boundPlayer = nil
@@ -2677,6 +2753,14 @@ end
 
 function showAuthPopup()
     writeDebugLog("showAuthPopup() - НОВАЯ ВЕРСИЯ")
+    
+    -- ★★★ ЗАЩИТА ОТ РАССИНХРОНА ★★★
+    if qrPopupActive then
+        writeDebugLog("⚠️ QR-код активен, не рисуем аутентификацию")
+        qrPopupActive = false
+        return
+    end
+    
     currentScreen = "auth_popup"
     authCodeInput = authCodeInput or ""
     
@@ -2842,6 +2926,8 @@ function showAuthPopup()
             fg = colors.success
         }
         
+        
+        --[[
         local qrBtn = {
             text = qrText,
             x = startX + confirmLen + spacing,
@@ -2851,6 +2937,8 @@ function showAuthPopup()
             bg = colors.bg_button,
             fg = colors.accent_main
         }
+        --]]
+        
         
         local closeBtn = {
             text = closeText,
@@ -2922,8 +3010,10 @@ function showAuthPopup()
                     break
                 end
                 
-                -- ★★★ НОВАЯ КНОПКА QR CODE ★★★
                 if isButtonClicked(qrBtn, x, y) then
+                    -- ★★★ ОЧИЩАЕМ ЭКРАН ПЕРЕД ОТКРЫТИЕМ QR ★★★
+                    gpu.setBackground(0x000000)
+                    gpu.fill(1, 1, 80, 25, " ")
                     showQRCodePopup()
                     break
                 end
@@ -3822,23 +3912,23 @@ function drawWelcomeScreen()
     end
     
     local diamond = {
-        "               ▒▒▒▒▒▒▓▓▓▒▒▒▒▒          ",
-        "             ▒▒▒▒▒▓▓▓▓▓▓▓▒▒▒▒▒         ",
-        "           ▒▒▒▒▓▓▓▒▒▒▒▒▓▓▓▒▒▒▒▒        ",
-        "          ▒▒▓▓▓▒▒▒▒▒▒▒▒▒▒▓▓▓▒▒▒        ",
-        "         ▒▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▒▒        ",
-        "        ▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓        ",
-        "       ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓       ",
-        "      ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓      ",
-        "     ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓     ",
-        "    ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓    ",
-        "   ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓   ",
-        "  ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓  ",
-        " ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓ ",
-        "▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓",
-        "▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓",
-        "▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓",
-        "▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓",
+        "             ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓            ",
+        "           ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▒▒▒▒▓          ",
+        "        ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓        ",
+        "      ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▒▒▒▒▒▒▒▒▒▓      ",
+        "     ▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▒▒▒▒▒▒▒▒▒▒▓▓▓▓▒▒▒▒▓▓▓▒▒     ",
+        "     ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓▒▒▒▒▒▒▓▓      ",
+        "       ▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▓       ",
+        "        ▓▓▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▓▓▓▓▓▒▓▓▓▓         ",
+        "          ▓▒▒▒▒▒▒▒▒▓▓▓▒▒▒▒▒▓▓▓▓▓▓▓▓▓▓▓          ",
+        "            ▓▒▒▒▒▒▓▓▓▓▓▒▒▓▓▓▓▓▓▓▓▓▓▓            ",
+        "             ▓▒▒▒▒▒▓▓▓▓▒▒▓▓▓▓▓▒▓▓▓▓             ",
+        "               ▓▒▒▒▒▓▓▓▒▒▓▓▓▓▓▓▓▓               ",
+        "                 ▓▒▒▒▓▓▒▒▓▓▓▓▓▓▓                ",
+        "                  ▓▒▒▒▓▓▒▓▓▓▓▓                  ",
+        "                    ▓▒▒▒▒▓▒▓▓                   ",
+        "                      ▓▒▒▒▓▓                    ",
+        "                        ▒▓                      ",
     }
     
     local gradient = {
@@ -3871,19 +3961,19 @@ function drawWelcomeScreen()
     else
         if currentPlayer and currentPlayer ~= "" then
             gpu.setForeground(text_color)
-            gpu.set(cx - 2, 21, "PI SHOP")
+            gpu.set(cx - 2, 21, "VIP SHOP")
             
             gpu.setForeground(sub_color)
-            gpu.set(cx - 6, 22, "◆ McSkill HiTech 1.7.10 ◆")
+            gpu.set(cx - 6, 22, "◆ McSkill HiTech ◆")
             
             gpu.setForeground(hint_color)
             gpu.set(cx - 10, 23, "Встаньте на ПИМ для входа")
         else
             gpu.setForeground(text_color)
-            gpu.set(cx - 2, 21, "PI SHOP")
+            gpu.set(cx - 2, 21, "VIP SHOP")
             
             gpu.setForeground(sub_color)
-            gpu.set(cx - 6, 22, "◆ McSkill HiTech 1.7.10 ◆")
+            gpu.set(cx - 6, 22, "◆ McSkill HiTech ◆")
             
             gpu.setForeground(hint_color)
             gpu.set(cx - 10, 23, "Встаньте на ПИМ для входа")
@@ -4972,14 +5062,25 @@ end
 
 function showQRCodePopup()
     writeDebugLog("showQRCodePopup()")
+    
+    -- ★★★ УСТАНАВЛИВАЕМ ФЛАГ ★★★
+    qrPopupActive = true
     currentScreen = "qr_popup"
     
+    -- ★★★ 1. ЗАПОМИНАЕМ СТАРОЕ РАЗРЕШЕНИЕ ★★★
     local oldWidth, oldHeight = gpu.getResolution()
-    gpu.setResolution(160, 50)
     
+    -- ★★★ 2. СТАВИМ СТАНДАРТНОЕ РАЗРЕШЕНИЕ И ОЧИЩАЕМ ★★★
+    gpu.setResolution(80, 25)
+    gpu.setBackground(0x000000)
+    gpu.fill(1, 1, 80, 25, " ")
+    
+    -- ★★★ 3. СТАВИМ БОЛЬШОЕ РАЗРЕШЕНИЕ И СНОВА ОЧИЩАЕМ ★★★
+    gpu.setResolution(160, 50)
     gpu.setBackground(0x000000)
     gpu.fill(1, 1, 160, 50, " ")
     
+    -- Рамка
     gpu.setForeground(0x00FFCC)
     gpu.fill(1, 1, 160, 1, "=")
     gpu.fill(1, 50, 160, 1, "=")
@@ -4992,21 +5093,25 @@ function showQRCodePopup()
     gpu.set(1, 50, "+")
     gpu.set(160, 50, "+")
     
+    -- Заголовок
     local titleText = "QR-КОД ДЛЯ ВХОДА"
     local titleX = 80 - math.floor(#titleText / 2) + 2
     gpu.setForeground(0x00FFCC)
     gpu.set(titleX, 2, titleText)
     
+    -- Игрок
     local playerText = "Игрок: " .. (currentPlayer or "?")
     local playerX = 80 - math.floor(#playerText / 2)   
     gpu.setForeground(colors.white)
     gpu.set(playerX, 4, playerText)
     
+    -- Подсказка
     local hintText = "Отсканируйте QR-код для входа на сайт"
     local hintX = 80 - math.floor(#hintText / 2) + 11
     gpu.setForeground(colors.inactive)
     gpu.set(hintX, 5, hintText)
     
+    -- QR-код
     local qrY = 7
     local qrX = 44
     
@@ -5059,47 +5164,101 @@ function showQRCodePopup()
         gpu.set(qrX, qrY + i - 1, line)
     end
     
-    local linkText = "Ссылка: https://KaRMa.pythonanywhere.com/"
+    -- Ссылка
+    local linkText = "Ссылка: https://zozido.pythonanywhere.com/"
     local linkX = 80 - math.floor(#linkText / 2) + 1
     gpu.setForeground(colors.inactive)
     gpu.set(linkX, qrY + 39, linkText)
     
+    -- Подсказка внизу
     local bottomHint = "[ Нажмите ЗАКРЫТЬ или ESC для возврата ]"
     local bottomHintX = 80 - math.floor(#bottomHint / 2) + 12
     gpu.setForeground(colors.text_main)
     gpu.set(bottomHintX, 48, bottomHint)
     
+    -- Кнопка ЗАКРЫТЬ
+    local closeText = "[ ЗАКРЫТЬ ]"
+    local closeLen = unicode.len(closeText) + 2
+    local closeX = 80 - math.floor(closeLen / 2)
+    
     local closeBtn = {
-        text = "[ ЗАКРЫТЬ ]",
-        x = 80 - 6,
+        text = closeText,
+        x = closeX,
         y = 49,
-        xs = 12,
+        xs = closeLen,
         ys = 1,
         bg = colors.bg_button,
         fg = colors.accent_secondary
     }
     drawFlexButton(closeBtn)
     
+    -- ★★★ ОСНОВНОЙ ЦИКЛ С ЗАЩИТОЙ ОТ РАССИНХРОНА ★★★
     while currentScreen == "qr_popup" do
         local ev = {event.pull(0.5)}
         
+        -- ★★★ ЗАЩИТА ОТ РАССИНХРОНА ★★★
+        if currentScreen ~= "qr_popup" then
+            writeDebugLog("⚠️ currentScreen изменился на " .. currentScreen .. ", выходим из QR")
+            qrPopupActive = false
+            break
+        end
+        
         if ev[1] == "touch" then
             local x, y = ev[3], ev[4]
+            local touchPlayer = ev[6] or "Неизвестный"
+            
+            if not isPimOwner(touchPlayer) then
+                writeDebugLog("⚠️ Коснулся не владелец: " .. touchPlayer .. ", игнорируем")
+                goto continue_qr
+            end
             
             if isButtonClicked(closeBtn, x, y) then
+                writeDebugLog("✅ QR-код закрыт по кнопке")
+                -- ★★★ ОБЯЗАТЕЛЬНО СБРАСЫВАЕМ ФЛАГИ ★★★
+                qrPopupActive = false
+                currentScreen = "auth_popup"
+                markDirty()
                 break
             end
             
         elseif ev[1] == "key_down" then
             local code = ev[3]
-            if code == 27 then
+            local keyPlayer = ev[5] or "Неизвестный"
+            
+            if not isPimOwner(keyPlayer) then
+                writeDebugLog("⚠️ Нажал клавишу не владелец: " .. keyPlayer .. ", игнорируем")
+                goto continue_qr
+            end
+            
+            if code == 27 then  -- ESC
+                writeDebugLog("✅ QR-код закрыт по ESC")
+                -- ★★★ ОБЯЗАТЕЛЬНО СБРАСЫВАЕМ ФЛАГИ ★★★
+                qrPopupActive = false
+                currentScreen = "auth_popup"
+                markDirty()
                 break
             end
         end
+        
+        ::continue_qr::
     end
     
+    -- ★★★ ЗАЩИТА: ЕСЛИ ВЫШЛИ ИЗ ЦИКЛА, НО ФЛАГ НЕ СБРОШЕН ★★★
+    if qrPopupActive then
+        qrPopupActive = false
+    end
+    
+    -- ★★★ 4. ВОЗВРАЩАЕМ ИСХОДНОЕ РАЗРЕШЕНИЕ И ОЧИЩАЕМ ★★★
     gpu.setResolution(oldWidth, oldHeight)
-    markDirty()
+    gpu.setBackground(0x000000)
+    gpu.fill(1, 1, oldWidth, oldHeight, " ")
+    
+    -- ★★★ 5. ВОЗВРАЩАЕМСЯ В АУТЕНТИФИКАЦИЮ ★★★
+    if currentScreen ~= "auth_popup" then
+        currentScreen = "auth_popup"
+        markDirty()
+        showAuthPopup()
+    end
 end
 
 function decodeBase64(data)
@@ -7792,11 +7951,6 @@ function main()
                     playersIndex[currentPlayer] = player
                     saveDBDeferred()
                     addLog("✅ Новый игрок: " .. currentPlayer)
-                    sendToWeb("/api/new_log", toJson({
-                        time = getRealTimeHM(),
-                        level = "SUCCESS",
-                        text = "Новый игрок: " .. currentPlayer
-                    }))
                     
                     local change = {
                         id = "new_" .. os.time() .. "_" .. math.random(100000),
@@ -7826,18 +7980,12 @@ function main()
                     alreadyAuthorized = true
                     
                     if selector then
-                        addLog("🖥 Селектор доступен")
                     end
                     
                     currentScreen = "menu"
                     markDirty()
                     forceSyncBinding()
                     addLog("👤 Вход: " .. currentPlayer)
-                    sendToWeb("/api/new_log", toJson({
-                        time = getRealTimeHM(),
-                        level = "INFO",
-                        text = "Вход: " .. currentPlayer
-                    }))
                 end
             end
             goto continue
