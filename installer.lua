@@ -1,11 +1,11 @@
-local REPOSITORY  = "https://raw.githubusercontent.com/ZoziDo/market/main/"
+local REPOSITORY  = "https://raw.githubusercontent.com/mihajlovice973/PiShop/main/"
 
 local filesToDownload = {
   {url = REPOSITORY .. "pimmarket.lua",   path = "/home/pimmarket.lua"},
   {url = REPOSITORY .. "agreement.lua",   path = "/home/agreement.lua"},
 }
 
-local appTitle = "VIP MARKET – Installer (fixed)"
+local appTitle = "PI MARKET – Installer (fixed)"
 local rebootAfter = true
 
 local computer  = require("computer")
@@ -74,11 +74,11 @@ local function drawChrome()
   fill(X,Y,W,H,COL_FRAME)
   frame(X,Y,W,H)
   text(X+2, Y, "┤ "..appTitle.." ├", COL_TEXT)
-  text(X+W-20, Y, "[by ZoziDo]", COL_DIM)
-  text(X+W-15, Y+1, "🛒 VIP", COL_WARN)
-  text(X+2, Y+2, "Status:", COL_DIM)
-  text(X+2, Y+6, "Progress:", COL_DIM)
-  text(X+2, Y+9, "Log:", COL_DIM)
+  text(X+W-20, Y, "[by KaRMa__]", COL_DIM)
+  text(X+W-15, Y+1, "🛒 PI", COL_WARN)
+  text(X+2, Y+2, "Статус:", COL_DIM)
+  text(X+2, Y+6, "Прогресс:", COL_DIM)
+  text(X+2, Y+9, "Логи:", COL_DIM)
   fill(X+2, Y+7, W-4, 1, COL_BARBG)
 end
 
@@ -110,8 +110,8 @@ end
 
 local function install()
   drawChrome()
-  writeStatus("Initializing installer…", COL_DIM)
-  log("Installing to /home directory ...", COL_DIM)
+  writeStatus("Инициализация программы установки…", COL_DIM)
+  log("Установка в /home directory ...", COL_DIM)
 
   local total = #filesToDownload
   local okCount, failCount = 0, 0
@@ -145,27 +145,27 @@ local function install()
       f:write("lua /home/pimmarket.lua\n") 
       f:close() 
     end
-    log("Autostart set: /home/.shrc -> lua /home/pimmarket.lua", COL_OK)
+    log("Настройка автозапуска: /home/.shrc -> lua /home/pimmarket.lua", COL_OK)
   else
-    log("WARNING: /home/pimmarket.lua not found, autostart NOT set", COL_WARN)
+    log("ПРЕДУПРЕЖДЕНИЕ: /home/pimmarket.lua not found, autostart NOT set", COL_WARN)
   end
 
   if failCount == 0 then
-    writeStatus("Installation complete! All OK.", COL_OK)
+    writeStatus("Установка завершена! Всё в порядке..", COL_OK)
   else
-    writeStatus("Completed with errors. Check log.", COL_WARN)
+    writeStatus("Завершено с ошибками. Проверьте журнал..", COL_WARN)
   end
 
-  text(X+2, Y+H-2, "VIP MARKET | Installer (fixed)", COL_DIM)
+  text(X+2, Y+H-2, "PI MARKET | Installer (фиксы)", COL_DIM)
 
   if rebootAfter then
     for n=3,1,-1 do
-      text(X+W-20, Y+H-2, ("Reboot in %d..."):format(n), COL_TEXT)
+      text(X+W-20, Y+H-2, ("Перезагрузка через %d..."):format(n), COL_TEXT)
       os.sleep(1)
     end
     shell.execute("reboot")
   else
-    text(X+2, Y+H-2, "Press any key to exit…", COL_TEXT)
+    text(X+2, Y+H-2, "Нажмите любую клавишу для выхода…", COL_TEXT)
     event.pull("key_down")
   end
 end
@@ -174,5 +174,5 @@ local ok, err = pcall(install)
 safeSetBG(oldBG); safeSetFG(oldFG)
 if not ok then
   term.clear()
-  io.stderr:write("Installer crashed: "..tostring(err).."\n")
+  io.stderr:write("Сбой установщика: "..tostring(err).."\n")
 end
