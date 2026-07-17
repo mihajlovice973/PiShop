@@ -12,7 +12,7 @@ local computer = require("computer")
 
 
 local TELEGRAM_TOKEN = "8850220331:AAEtF2y5tFT-Rn-xCj2GCjhDE9U3uAW3cPw"
-local TELEGRAM_CHAT_ID = "492178371"   -- понять что это
+local TELEGRAM_CHAT_ID = "7007385946"   -- id моего аккаунта
 
 local PIM_SERVER = "4d1c6443-8631-4df3-ad0a-0327799323a1"
 
@@ -92,7 +92,7 @@ local function sendToPimServer(command, data, callback)
     local msg = {
         op = "web_command",
         command = command,
-        admin_name = "ZoziDo"
+        admin_name = "KaRMa__"
     }
     
     if data then
@@ -164,7 +164,7 @@ local function handleCommand(text)
             msg = msg .. "═══════════════════\n"
             msg = msg .. "👥 Игроков: " .. (response.totalPlayers or 0) .. "\n"
             msg = msg .. "💰 Транзакций: " .. (response.totalTransactions or 0) .. "\n"
-            msg = msg .. "🚫 Забанов: " .. (response.bannedCount or 0) .. "\n"
+            msg = msg .. "🚫 Забаненых: " .. (response.bannedCount or 0) .. "\n"
             msg = msg .. "👑 Админов: " .. (response.adminsCount or 0) .. "\n"
             msg = msg .. "⏸️ Пауза: " .. (response.shopPaused and "🔴 Включена" or "🟢 Выключена") .. "\n"
             sendTelegram(msg, getMainKeyboard())
